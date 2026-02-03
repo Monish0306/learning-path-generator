@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+        </div>
+
+        <div class="content-wrapper">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <h1 id="userName"></h1>
+                <h2 id="subjectName"></h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="completedTopics">0</div>
+                        <div class="stat-label">Topics Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTopics">0</div>
+                        <div class="stat-label">Total Topics</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="averageMastery">0%</div>
+                        <div class="stat-label">Average Mastery</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="readyTopics">0</div>
+                        <div class="stat-label">Ready to Learn</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personalized Learning Path -->
+            <div class="path-container">
+                <h2>Your Personalized Learning Path 🎯</h2>
+                <p style="color: #64748b; margin-bottom: 30px;">
+                    This path is customized based on your assessment results
+                </p>
+
+                <div id="learningPath"></div>
+
+                <div class="text-center mt-3">
+                    <button id="startLearningBtn" class="btn-primary">
+                        <span>Start Learning</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/algorithms/dag.js"></script>
+    <script src="js/algorithms/topological-sort.js"></script>
+    <script src="js/algorithms/astar.js"></script>
+    <script src="js/data/subjects.js"></script>
+    <script>
+        // Load user data
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        const selectedSubject = JSON.parse(localStorage.getItem('selectedSubject'));
+        const assessmentResults = JSON.parse(localStorage.getItem('assessmentResults'));
+
+        if (!userData || !selectedSubject || !assessmentResults) {
+            window.location.href = 'index.html';
+        }
+
+        // Set header
+        document.getElementById('userName').textContent = `Welcome back, ${userData.name}! 👋`;
+        document.getElementById('subjectName').textContent = selectedSubject.name;
+
+        // Create DAG from subject data
+        const subjectData = subjectsDatabase[selectedSubject.id];
+        const graph = new DAG();
+
+        // Add all topics as vertices
+        for (const [topicId, topicInfo] of Object.entries(subjectData.topics)) {
+            // Set initial mastery based on assessment
+            const initialMastery = calculateInitialMastery(topicId, assessmentResults);
+            
+            graph.addVertex(topicId, {
+                name: topicInfo.name,
+                difficulty: topicInfo.difficulty,
+                mastery: initialMastery,
+                completed: initialMastery >= 0.7,
+                subtopics: topicInfo.subtopics
+            });
+        }
+
+        // Add edges (prerequisites)
+        for (const [topicId, topicInfo] of Object.entries(subjectData.topics)) {
+            for (const prereq of topicInfo.prerequisites) {
+                graph.addEdge(prereq, topicId);
+            }
+        }
+
+        // Calculate initial mastery based on assessment
+        function calculateInitialMastery(topicId, results) {
+            // Map assessment answers to topics
+            const relatedAnswers = results.answers.filter(a => {
+                // Simple heuristic: check if topic matches
+                return true; // In real app, would have better mapping
+            });
+
+            if (relatedAnswers.length === 0) return 0;
+
+            const correctCount = relatedAnswers.filter(a => a.correct).length;
+            return correctCount / relatedAnswers.length;
+        }
+
+        // Generate personalized learning path
+        const learningPath = TopologicalSort.personalizedSort(graph);
+
+        // Update statistics
+        const stats = graph.getStats();
+        document.getElementById('completedTopics').textContent = stats.completedTopics;
+        document.getElementById('totalTopics').textContent = stats.totalTopics;
+        document.getElementById('averageMastery').textContent = Math.round(stats.averageMastery * 100) + '%';
+        document.getElementById('readyTopics').textContent = stats.readyTopics;
+
+        // Render learning path
+        const pathContainer = document.getElementById('learningPath');
+        learningPath.forEach((topicId, index) => {
+            const topicData = graph.getTopicData(topicId);
+            const isReady = graph.isReady(topicId);
+            const isCurrent = index === 0 && !topicData.completed;
+            
+            const node = document.createElement('div');
+            node.className = `topic-node ${topicData.completed ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${!isReady && !topicData.completed ? 'locked' : ''}`;
+            
+            let statusIcon = '⏳';
+            if (topicData.completed) statusIcon = '✅';
+            else if (isCurrent) statusIcon = '🎯';
+            else if (!isReady) statusIcon = '🔒';
+
+            node.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; color: var(--dark);">
+                            ${statusIcon} ${index + 1}. ${topicData.name}
+                        </h3>
+                        <p style="margin: 0; color: #64748b; font-size: 0.9rem;">
+                            Difficulty: ${'⭐'.repeat(topicData.difficulty)} | 
+                            Mastery: ${Math.round(topicData.mastery * 100)}%
+                        </p>
+                        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 0.85rem;">
+                            ${topicData.subtopics.join(' • ')}
+                        </p>
+                    </div>
+                    <div>
+                        ${!topicData.completed && isReady ? 
+                            `<button class="btn-secondary" onclick="startTopic('${topicId}')">Learn</button>` : 
+                            ''}
+                    </div>
+                </div>
+            `;
+            
+            pathContainer.appendChild(node);
+        });
+
+        // Store graph and path for quiz page
+        localStorage.setItem('learningGraph', JSON.stringify({
+            vertices: Array.from(graph.adjacencyList.keys()),
+            edges: Array.from(graph.adjacencyList.entries()).map(([from, tos]) => ({from, tos})),
+            topicData: Array.from(graph.topicData.entries()).map(([id, data]) => ({id, data})),
+            path: learningPath
+        }));
+
+        function startTopic(topicId) {
+            localStorage.setItem('currentTopic', topicId);
+            window.location.href = 'quiz.html';
+        }
+
+        document.getElementById('startLearningBtn').addEventListener('click', () => {
+            const firstIncompleteTopic = learningPath.find(id => {
+                const data = graph.getTopicData(id);
+                return !data.completed && graph.isReady(id);
+            });
+
+            if (firstIncompleteTopic) {
+                startTopic(firstIncompleteTopic);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initial Assessment</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+        </div>
+
+        <div class="quiz-container">
+            <div class="card">
+                <div class="text-center mb-3">
+                    <h2 id="subjectTitle"></h2>
+                    <p style="color: #64748b;">Quick diagnostic assessment to understand your current level</p>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+
+                <div id="assessmentContainer"></div>
+
+                <div class="text-center mt-3">
+                    <button id="submitBtn" class="btn-primary hidden">
+                        <span>Submit Answer</span>
+                    </button>
+                    <button id="completeBtn" class="btn-primary hidden">
+                        <span>Complete Assessment</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data/subjects.js"></script>
+    <script>
+        const selectedSubject = JSON.parse(localStorage.getItem('selectedSubject'));
+        if (!selectedSubject) {
+            window.location.href = 'subject-selection.html';
+        }
+
+        document.getElementById('subjectTitle').textContent = 
+            `${selectedSubject.name} - Initial Assessment`;
+
+        let currentQuestion = 0;
+        let answers = [];
+        let selectedAnswer = null;
+        let assessmentQuestions = [];
+
+        // FIXED: Get subject-specific assessment questions
+        function generateAssessmentQuestions() {
+            const subjectData = subjectsDatabase[selectedSubject.id];
+            if (!subjectData) {
+                console.error('Subject not found:', selectedSubject.id);
+                return [];
+            }
+
+            const allQuestions = [];
+            
+            // Collect questions from all topics
+            for (const topicId in subjectData.quizBank) {
+                const topicQuestions = subjectData.quizBank[topicId];
+                topicQuestions.forEach(q => {
+                    allQuestions.push({
+                        ...q,
+                        topic: topicId
+                    });
+                });
+            }
+
+            // Shuffle and select 8-10 random questions
+            const shuffled = allQuestions.sort(() => Math.random() - 0.5);
+            return shuffled.slice(0, Math.min(10, shuffled.length));
+        }
+
+        // Generate random questions for this attempt
+        assessmentQuestions = generateAssessmentQuestions();
+
+        if (assessmentQuestions.length === 0) {
+            alert('No questions available for this subject. Please select another subject.');
+            window.location.href = 'subject-selection.html';
+        }
+
+        function renderQuestion() {
+            const container = document.getElementById('assessmentContainer');
+            const q = assessmentQuestions[currentQuestion];
+            
+            container.innerHTML = `
+                <div class="question-card fade-in-up">
+                    <div class="question-number">Question ${currentQuestion + 1} of ${assessmentQuestions.length}</div>
+                    <div class="question-text">${q.question}</div>
+                    <ul class="options-list">
+                        ${q.options.map((opt, idx) => `
+                            <li class="option-item" data-index="${idx}">
+                                <strong>${String.fromCharCode(65 + idx)}.</strong> ${opt}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.querySelectorAll('.option-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.option-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedAnswer = parseInt(this.dataset.index);
+                    document.getElementById('submitBtn').classList.remove('hidden');
+                });
+            });
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progress = (currentQuestion / assessmentQuestions.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', () => {
+            if (selectedAnswer !== null) {
+                const q = assessmentQuestions[currentQuestion];
+                const isCorrect = selectedAnswer === q.correct;
+                
+                answers.push({
+                    question: currentQuestion,
+                    answer: selectedAnswer,
+                    correct: isCorrect,
+                    topic: q.topic
+                });
+
+                currentQuestion++;
+                selectedAnswer = null;
+                document.getElementById('submitBtn').classList.add('hidden');
+
+                if (currentQuestion < assessmentQuestions.length) {
+                    renderQuestion();
+                } else {
+                    showComplete();
+                }
+            }
+        });
+
+        function showComplete() {
+            const container = document.getElementById('assessmentContainer');
+            const correctAnswers = answers.filter(a => a.correct).length;
+            const percentage = Math.round((correctAnswers / assessmentQuestions.length) * 100);
+
+            container.innerHTML = `
+                <div class="text-center">
+                    <h3 style="color: var(--primary); font-size: 2rem; margin: 30px 0;">Assessment Complete! 🎉</h3>
+                    <div class="stat-card" style="margin: 20px auto; max-width: 300px;">
+                        <div class="stat-value">${percentage}%</div>
+                        <div class="stat-label">Score: ${correctAnswers}/${assessmentQuestions.length} correct</div>
+                    </div>
+                    <p style="color: #64748b; margin: 20px 0;">
+                        We're now generating your personalized learning path...
+                    </p>
+                </div>
+            `;
+
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('completeBtn').classList.remove('hidden');
+
+            localStorage.setItem('assessmentResults', JSON.stringify({
+                answers,
+                score: percentage,
+                correctAnswers,
+                totalQuestions: assessmentQuestions.length
+            }));
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', () => {
+            window.location.href = 'learning-dashboard.html';
+        });
+
+        renderQuestion();
+    </script>
+</body>
+</html>

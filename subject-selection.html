@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Your Subject</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <div class="container">
+        <div class="bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+            <div class="circle circle-3"></div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="card">
+                <div id="welcomeMessage" class="text-center mb-3"></div>
+                <h2>Choose Your Subject</h2>
+                <p class="text-center mb-3" style="color: #64748b;">Select a subject to begin your personalized learning journey</p>
+
+                <div class="subjects-grid" id="subjectsGrid"></div>
+
+                <div class="text-center mt-3">
+                    <button id="continueBtn" class="btn-primary" disabled>
+                        <span>Continue to Assessment</span>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data/subjects.js"></script>
+    <script>
+        // Load user data
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('welcomeMessage').innerHTML = 
+            `<h3 style="color: var(--primary); margin-bottom: 10px;">Welcome, ${userData.name}! 👋</h3>`;
+
+        let selectedSubject = null;
+
+        // Render subjects
+        const subjectsGrid = document.getElementById('subjectsGrid');
+        
+        const subjectsData = [
+            { id: 'daa', name: 'Design & Analysis of Algorithms', icon: '🧮', description: 'Master algorithmic thinking and complexity analysis' },
+            { id: 'ml', name: 'Machine Learning', icon: '🤖', description: 'Learn ML algorithms and applications' },
+            { id: 'ai', name: 'Artificial Intelligence', icon: '🧠', description: 'Explore AI concepts and techniques' },
+            { id: 'ds', name: 'Data Science', icon: '📊', description: 'Analyze data and extract insights' },
+            { id: 'python', name: 'Python Programming', icon: '🐍', description: 'Master Python from basics to advanced' },
+            { id: 'cpp', name: 'C++ Programming', icon: '⚙️', description: 'Learn C++ programming fundamentals' },
+            { id: 'java', name: 'Java Programming', icon: '☕', description: 'Object-oriented programming with Java' },
+            { id: 'dbms', name: 'Database Management Systems', icon: '💾', description: 'Database design and SQL mastery' }
+        ];
+
+        subjectsData.forEach(subject => {
+            const card = document.createElement('div');
+            card.className = 'subject-card';
+            card.innerHTML = `
+                <span class="subject-icon">${subject.icon}</span>
+                <h3>${subject.name}</h3>
+                <p>${subject.description}</p>
+            `;
+            card.addEventListener('click', () => selectSubject(subject, card));
+            subjectsGrid.appendChild(card);
+        });
+
+        function selectSubject(subject, cardElement) {
+            // Remove previous selection
+            document.querySelectorAll('.subject-card').forEach(c => c.classList.remove('selected'));
+            
+            // Add selection
+            cardElement.classList.add('selected');
+            selectedSubject = subject;
+            
+            // Enable continue button
+            document.getElementById('continueBtn').disabled = false;
+        }
+
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            if (selectedSubject) {
+                localStorage.setItem('selectedSubject', JSON.stringify(selectedSubject));
+                window.location.href = 'assessment.html';
+            }
+        });
+    </script>
+</body>
+</html>

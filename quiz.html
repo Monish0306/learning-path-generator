@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic Quiz</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+        </div>
+
+        <div class="quiz-container">
+            <div class="card">
+                <div class="text-center mb-3">
+                    <h2 id="topicTitle"></h2>
+                    <p id="subtopicsList" style="color: #64748b;"></p>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+
+                <div id="quizContainer"></div>
+
+                <div class="text-center mt-3">
+                    <button id="submitBtn" class="btn-primary hidden">
+                        <span>Submit Answer</span>
+                    </button>
+                    <button id="nextBtn" class="btn-primary hidden">
+                        <span>Next Question</span>
+                    </button>
+                    <button id="completeBtn" class="btn-primary hidden">
+                        <span>Complete Topic</span>
+                    </button>
+                </div>
+
+                <div class="text-center mt-3">
+                    <button id="backBtn" class="btn-secondary">Back to Dashboard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/algorithms/dag.js"></script>
+    <script src="js/data/subjects.js"></script>
+    <script>
+        const currentTopicId = localStorage.getItem('currentTopic');
+        const selectedSubject = JSON.parse(localStorage.getItem('selectedSubject'));
+        const graphData = JSON.parse(localStorage.getItem('learningGraph'));
+
+        if (!currentTopicId || !selectedSubject) {
+            window.location.href = 'learning-dashboard.html';
+        }
+
+        const graph = new DAG();
+        graphData.topicData.forEach(({id, data}) => {
+            graph.addVertex(id, data);
+        });
+        graphData.edges.forEach(({from, tos}) => {
+            tos.forEach(to => graph.addEdge(from, to));
+        });
+
+        const topicData = graph.getTopicData(currentTopicId);
+        const subjectData = subjectsDatabase[selectedSubject.id];
+        
+        // FIXED: Random question selection with no repeats
+        function getRandomQuestions(questionBank, count) {
+            if (!questionBank || questionBank.length === 0) {
+                return generateDefaultQuestions();
+            }
+
+            // Shuffle questions
+            const shuffled = [...questionBank].sort(() => Math.random() - 0.5);
+            
+            // Take 'count' questions, or all if less available
+            return shuffled.slice(0, Math.min(count, shuffled.length));
+        }
+
+        function generateDefaultQuestions() {
+            return [
+                {
+                    question: `Have you reviewed the subtopics for ${topicData.name}?`,
+                    options: ["Yes, thoroughly", "Yes, briefly", "Partially", "Not yet"],
+                    correct: 0
+                },
+                {
+                    question: "How confident are you with this topic?",
+                    options: ["Very confident", "Somewhat confident", "Not very confident", "Need more practice"],
+                    correct: 0
+                },
+                {
+                    question: "Can you explain the key concepts?",
+                    options: ["Yes, easily", "Yes, with some effort", "With difficulty", "Not yet"],
+                    correct: 0
+                },
+                {
+                    question: "Ready to move to the next topic?",
+                    options: ["Yes, definitely", "Yes, I think so", "Need more review", "Not yet"],
+                    correct: 0
+                },
+                {
+                    question: "Rate your understanding (1-4)?",
+                    options: ["4 - Excellent", "3 - Good", "2 - Fair", "1 - Poor"],
+                    correct: 0
+                }
+            ];
+        }
+
+        // Get quiz questions - random 5-6 from bank
+        const questionBank = subjectData.quizBank[currentTopicId];
+        const quizQuestions = getRandomQuestions(questionBank, 6);
+
+        document.getElementById('topicTitle').textContent = topicData.name;
+        document.getElementById('subtopicsList').textContent = 
+            `Subtopics: ${topicData.subtopics.join(', ')}`;
+
+        let currentQuestion = 0;
+        let answers = [];
+        let selectedAnswer = null;
+
+        function renderQuestion() {
+            const container = document.getElementById('quizContainer');
+            const q = quizQuestions[currentQuestion];
+            
+            container.innerHTML = `
+                <div class="question-card fade-in-up">
+                    <div class="question-number">Question ${currentQuestion + 1} of ${quizQuestions.length}</div>
+                    <div class="question-text">${q.question}</div>
+                    <ul class="options-list">
+                        ${q.options.map((opt, idx) => `
+                            <li class="option-item" data-index="${idx}">
+                                <strong>${String.fromCharCode(65 + idx)}.</strong> ${opt}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.querySelectorAll('.option-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.option-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedAnswer = parseInt(this.dataset.index);
+                    document.getElementById('submitBtn').classList.remove('hidden');
+                });
+            });
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progress = (currentQuestion / quizQuestions.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', () => {
+            if (selectedAnswer !== null) {
+                const q = quizQuestions[currentQuestion];
+                const isCorrect = selectedAnswer === q.correct;
+                
+                answers.push({
+                    question: currentQuestion,
+                    answer: selectedAnswer,
+                    correct: isCorrect
+                });
+
+                document.querySelectorAll('.option-item').forEach((item, idx) => {
+                    item.style.pointerEvents = 'none';
+                    if (idx === q.correct) {
+                        item.classList.add('correct');
+                    } else if (idx === selectedAnswer && !isCorrect) {
+                        item.classList.add('incorrect');
+                    }
+                });
+
+                document.getElementById('submitBtn').classList.add('hidden');
+                
+                if (currentQuestion < quizQuestions.length - 1) {
+                    document.getElementById('nextBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('completeBtn').classList.remove('hidden');
+                }
+            }
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentQuestion++;
+            selectedAnswer = null;
+            document.getElementById('nextBtn').classList.add('hidden');
+            renderQuestion();
+        });
+
+        document.getElementById('completeBtn').addEventListener('click', () => {
+            const correctAnswers = answers.filter(a => a.correct).length;
+            const mastery = correctAnswers / quizQuestions.length;
+            
+            graph.updateMastery(currentTopicId, mastery);
+            
+            localStorage.setItem('learningGraph', JSON.stringify({
+                vertices: Array.from(graph.adjacencyList.keys()),
+                edges: Array.from(graph.adjacencyList.entries()).map(([from, tos]) => ({from, tos})),
+                topicData: Array.from(graph.topicData.entries()).map(([id, data]) => ({id, data})),
+                path: graphData.path
+            }));
+
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = `
+                <div class="text-center">
+                    <h3 style="color: var(--primary); font-size: 2rem; margin: 30px 0;">
+                        ${mastery >= 0.7 ? 'Great Job! 🎉' : 'Keep Practicing! 💪'}
+                    </h3>
+                    <div class="stat-card" style="margin: 20px auto; max-width: 300px;">
+                        <div class="stat-value">${Math.round(mastery * 100)}%</div>
+                        <div class="stat-label">Mastery Level</div>
+                    </div>
+                    <p style="color: #64748b; margin: 20px 0;">
+                        ${mastery >= 0.7 ? 
+                            'You have mastered this topic! Moving to next topic.' : 
+                            'You may want to review this topic before moving forward.'}
+                    </p>
+                </div>
+            `;
+
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('completeBtn').classList.add('hidden');
+
+            setTimeout(() => {
+                window.location.href = 'learning-dashboard.html';
+            }, 3000);
+        });
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = 'learning-dashboard.html';
+        });
+
+        renderQuestion();
+    </script>
+</body>
+</html>

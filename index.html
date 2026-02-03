@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personalized Learning Path Generator</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Animated Background -->
+        <div class="bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+            <div class="circle circle-3"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-wrapper">
+            <header class="hero-section">
+                <h1 class="fade-in">Welcome to Your <span class="gradient-text">Personalized Learning Journey</span></h1>
+                <p class="subtitle fade-in-delay">An AI-driven platform that creates custom learning paths tailored just for you</p>
+            </header>
+
+            <div class="card registration-card fade-in-up">
+                <h2>Get Started</h2>
+                <form id="registrationForm">
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" name="name" placeholder="Enter your name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="institution">Institution Name</label>
+                        <input type="text" id="institution" name="institution" placeholder="Your university/college" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rollNumber">Roll Number / Student ID</label>
+                        <input type="text" id="rollNumber" name="rollNumber" placeholder="Enter your ID" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        <span>Begin Learning</span>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <div class="features-section">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Smart Assessment</h3>
+                    <p>Quick diagnostic tests to understand your current level</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Personalized Paths</h3>
+                    <p>Custom learning sequences based on your knowledge</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Adaptive Learning</h3>
+                    <p>Paths that evolve based on your progress</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.getElementById('registrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const userData = {
+                name: document.getElementById('name').value,
+                institution: document.getElementById('institution').value,
+                email: document.getElementById('email').value,
+                rollNumber: document.getElementById('rollNumber').value,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('userData', JSON.stringify(userData));
+            window.location.href = 'subject-selection.html';
+        });
+    </script>
+</body>
+</html>
